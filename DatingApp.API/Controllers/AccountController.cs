@@ -42,7 +42,7 @@ namespace DatingApp.API.Controllers
             }
 
             return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName };
-        }  
+        }
 
         private async Task<bool> UserExist(string username)
         {
