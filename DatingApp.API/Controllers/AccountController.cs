@@ -16,17 +16,17 @@ namespace DatingApp.API.Controllers
         {
             if (await UserExist(registerDto.Username)) return BadRequest("username already exist");
             using var hmac = new HMACSHA512();
+            return Ok();
+            //var user = new AppUser() 
+            //{ 
+            //    UserName = registerDto.Username.ToLower(), 
+            //    PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)),
+            //    PasswordSalt = hmac.Key
+            //};
+            //dataContext.Users.Add(user);
+            //await dataContext.SaveChangesAsync();
 
-            var user = new AppUser() 
-            { 
-                UserName = registerDto.Username.ToLower(), 
-                PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)),
-                PasswordSalt = hmac.Key
-            };
-            dataContext.Users.Add(user);
-            await dataContext.SaveChangesAsync();
-
-            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName };
+            //return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName };
         }
         
         [HttpPost("login")]
