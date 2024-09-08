@@ -1,1 +1,8 @@
-<p>member-list works!</p>
+<div class="row">
+    
+        @for (mem of members; track mem.id) {
+            <div class="col-2">
+            <app-members-card [member]="mem"></app-members-card>
+        </div>
+        }
+</div>

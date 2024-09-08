@@ -34,9 +34,8 @@ namespace DatingApp.API
 
             app.UseHttpsRedirection();
 
-            app.UseAuthorization();
-
             app.UseAuthentication();
+            app.UseAuthorization();
             app.UseAuthorization();
             app.MapControllers();
 
