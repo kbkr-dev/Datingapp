@@ -6,6 +6,7 @@ using DatingApp.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace DatingApp.API.Controllers
 {
@@ -35,6 +36,20 @@ namespace DatingApp.API.Controllers
 
             if (user == null) return NotFound();
             return user;
+        }
+
+        [HttpPut]
+        public async Task<ActionResult> UpdateProfile(MemberUpdateDto memberUpdateDto)
+        {
+            var userName = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userName == null) return BadRequest("No username found in token");
+            var user = await userRepository.GetUserByUsernameAsync(userName);
+            if (user == null) return NotFound("user not found");
+
+            mapper.Map(memberUpdateDto, user);
+            if (await userRepository.SaveAllAsync()) return NoContent();
+
+            return BadRequest("failed to update user");
         }
     }
 }

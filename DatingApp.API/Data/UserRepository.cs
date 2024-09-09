@@ -35,7 +35,7 @@ namespace DatingApp.API.Data
             return await context.Users.SingleOrDefaultAsync(x => x.UserName == username);
         }
 
-        public async Task<bool> SaveAllAsync(AppUser user)
+        public async Task<bool> SaveAllAsync()
         {
             return await context.SaveChangesAsync() > 0;
         }
