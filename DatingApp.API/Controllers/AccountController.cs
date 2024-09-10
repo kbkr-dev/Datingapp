@@ -10,7 +10,7 @@ using System.Text;
 
 namespace DatingApp.API.Controllers
 {
-    public class AccountController(DataContext dataContext, ITokenService tokenService): BaseApiController
+    public class AccountController(IUserRepository userRepository, ITokenService tokenService): BaseApiController
     {
         [HttpPost("register")]
         public async Task<ActionResult<UserDto>> Register(RegisterDto registerDto)
@@ -33,7 +33,7 @@ namespace DatingApp.API.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
         {
-            var user = await dataContext.Users.FirstOrDefaultAsync(u => u.UserName == loginDto.Username.ToLower());
+            var user = await userRepository.GetUserByUsernameAsync(loginDto.Username);
             if (user == null) return Unauthorized("Invalid username");
             using var hmac = new HMACSHA512(user.PasswordSalt);
             var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(loginDto.Password));
@@ -42,12 +42,13 @@ namespace DatingApp.API.Controllers
                 if (computedHash[i] != user.PasswordHash[i]) { return Unauthorized("invalid password"); }
             }
 
-            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName };
+            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, PhotoUrl = user.Photos.FirstOrDefault(x => x.IsMain)?.Url };
         }
 
         private async Task<bool> UserExist(string username)
         {
-            return await dataContext.Users.AnyAsync(u => u.UserName.ToLower() == username.ToLower());
+            var user = await userRepository.GetUserByUsernameAsync(username.ToLower());
+            return user != null;
         }
     }
 }
