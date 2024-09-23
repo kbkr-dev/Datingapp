@@ -1,4 +1,5 @@
-﻿using DatingApp.API.Data;
+﻿using AutoMapper;
+using DatingApp.API.Data;
 using DatingApp.API.DTOs;
 using DatingApp.API.Entities;
 using DatingApp.API.Interfaces;
@@ -10,24 +11,24 @@ using System.Text;
 
 namespace DatingApp.API.Controllers
 {
-    public class AccountController(IUserRepository userRepository, ITokenService tokenService): BaseApiController
+    public class AccountController(IUserRepository userRepository, ITokenService tokenService,
+        IMapper mapper, DataContext dataContext): BaseApiController
     {
         [HttpPost("register")]
         public async Task<ActionResult<UserDto>> Register(RegisterDto registerDto)
         {
             if (await UserExist(registerDto.Username)) return BadRequest("username already exist");
             using var hmac = new HMACSHA512();
-            return Ok();
-            //var user = new AppUser() 
-            //{ 
-            //    UserName = registerDto.Username.ToLower(), 
-            //    PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)),
-            //    PasswordSalt = hmac.Key
-            //};
-            //dataContext.Users.Add(user);
-            //await dataContext.SaveChangesAsync();
 
-            //return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName };
+            var user = mapper.Map<AppUser>(registerDto);
+            user.UserName = registerDto.Username.ToLower();
+            user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password));
+            user.PasswordSalt = hmac.Key;
+
+            dataContext.Users.Add(user);
+            await dataContext.SaveChangesAsync();
+
+            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, KnownAs = user.KnownAs };
         }
         
         [HttpPost("login")]
@@ -42,7 +43,10 @@ namespace DatingApp.API.Controllers
                 if (computedHash[i] != user.PasswordHash[i]) { return Unauthorized("invalid password"); }
             }
 
-            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, PhotoUrl = user.Photos.FirstOrDefault(x => x.IsMain)?.Url };
+            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, 
+                PhotoUrl = user.Photos.FirstOrDefault(x => x.IsMain)?.Url,
+                KnownAs = user.KnownAs
+            };
         }
 
         private async Task<bool> UserExist(string username)
