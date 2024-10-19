@@ -28,7 +28,7 @@ namespace DatingApp.API.Controllers
             dataContext.Users.Add(user);
             await dataContext.SaveChangesAsync();
 
-            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, KnownAs = user.KnownAs };
+            return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, KnownAs = user.KnownAs, Gender = user.Gender };
         }
         
         [HttpPost("login")]
@@ -45,7 +45,8 @@ namespace DatingApp.API.Controllers
 
             return new UserDto { Token = tokenService.CreateToken(user), UserName = user.UserName, 
                 PhotoUrl = user.Photos.FirstOrDefault(x => x.IsMain)?.Url,
-                KnownAs = user.KnownAs
+                KnownAs = user.KnownAs,
+                Gender = user.Gender
             };
         }
 
