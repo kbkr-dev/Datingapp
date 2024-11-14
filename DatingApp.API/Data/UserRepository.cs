@@ -12,7 +12,7 @@ namespace DatingApp.API.Data
     {
         public async Task<MemberDto?> GetMemberByUsernameAsync(string username)
         {
-            return await context.Users.Where(u => u.UserName == username)
+            return await context.Users.Where(u => u.NormalizedUserName == username.ToUpper())
                 .ProjectTo<MemberDto>(mapper.ConfigurationProvider).SingleOrDefaultAsync();
         }
 
@@ -52,7 +52,7 @@ namespace DatingApp.API.Data
 
         public async Task<AppUser?> GetUserByUsernameAsync(string username)
         {
-            return await context.Users.Include(p => p.Photos).SingleOrDefaultAsync(x => x.UserName == username);
+            return await context.Users.Include(p => p.Photos).SingleOrDefaultAsync(x => x.NormalizedUserName == username.ToUpper());
         }
 
         public async Task<bool> SaveAllAsync()
