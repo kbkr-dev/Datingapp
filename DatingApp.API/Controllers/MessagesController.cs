@@ -4,10 +4,12 @@ using DatingApp.API.Entities;
 using DatingApp.API.Extensions;
 using DatingApp.API.Helpers;
 using DatingApp.API.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DatingApp.API.Controllers
 {
+    [Authorize]
     public class MessagesController(IMessageRepository messageRepository, IUserRepository userRepository, IMapper mapper) : BaseApiController
     {
         [HttpPost]
@@ -38,7 +40,7 @@ namespace DatingApp.API.Controllers
             };
 
             messageRepository.AddMessage(message);
-            if(await messageRepository.SaveAllAsync())
+            if (await messageRepository.SaveAllAsync())
             {
                 return Ok(mapper.Map<MessageDto>(message));
             }
@@ -64,6 +66,32 @@ namespace DatingApp.API.Controllers
             var currentUsername = User.GetUserName();
 
             return Ok(await messageRepository.GetMessageThread(currentUsername, username));
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteMessage(int id)
+        {
+            var username = User.GetUserName();
+
+            var message = await messageRepository.GetMessage(id);
+
+            if (message == null)
+            {
+                return BadRequest("cannot delete");
+            }
+            if (message.SenderUsername != username && message.RecipientUsername != username) return Forbid();
+
+            if(message.SenderUsername == username) message.SenderDeleted = true;
+            if(message.RecipientUsername == username) message.RecipientDeleted = true;
+
+            if(message is { SenderDeleted: true, RecipientDeleted: true })
+            {
+                messageRepository.DeleteMessage(message);
+            }
+
+            if (await messageRepository.SaveAllAsync()) return Ok();
+
+            return BadRequest("problem deleting message");
         }
     }
 }
