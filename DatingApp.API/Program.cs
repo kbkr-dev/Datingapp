@@ -5,6 +5,7 @@ using DatingApp.API.Extensions;
 using DatingApp.API.Interfaces;
 using DatingApp.API.Middleware;
 using DatingApp.API.Services;
+using DatingApp.API.SignalR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,7 @@ namespace DatingApp.API
             // Configure the HTTP request pipeline.
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseCors(x => x.AllowAnyHeader()
-            .AllowAnyMethod()
+            .AllowAnyMethod().AllowCredentials()
             .WithOrigins("http://localhost:4200", "https://localhost:4200"));
             if (app.Environment.IsDevelopment())
             {
@@ -42,6 +43,8 @@ namespace DatingApp.API
             app.UseAuthorization();
             app.UseAuthorization();
             app.MapControllers();
+            app.MapHub<PresenceHub>("hubs/presence");
+            app.MapHub<MessageHub>("hubs/message");
 
             using var scope = app.Services.CreateScope();
             var services = scope.ServiceProvider;
@@ -51,6 +54,7 @@ namespace DatingApp.API
                 var userManager = services.GetRequiredService<UserManager<AppUser>>();
                 var roleManager = services.GetRequiredService<RoleManager<AppRole>>();
                 await context.Database.MigrateAsync();
+                await context.Database.ExecuteSqlRawAsync("DELETE FROM [CONNECTIONS]");
                 await Seed.SeedUsers(userManager, roleManager);
             }
             catch (Exception ex)
