@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace DatingApp.API.SignalR
 {
-    public class MessageHub(IMessageRepository messageRepository, IUserRepository userRepository, IMapper mapper) : Hub
+    public class MessageHub(IMessageRepository messageRepository, IUserRepository userRepository, IMapper mapper,
+        IHubContext<PresenceHub> presenceHub) : Hub
     {
         public override async Task OnConnectedAsync()
         {
@@ -17,15 +18,17 @@ namespace DatingApp.API.SignalR
             if (Context.User == null || string.IsNullOrEmpty(otherUser)) { throw new Exception("cannot join group"); }
             var groupName = GetGroupName(Context.User.GetUserName(), otherUser);
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-            await AddToGroup(groupName);
+            var group = await AddToGroup(groupName);
+            await Clients.Group(groupName).SendAsync("UpdatedGroup", group);
 
             var messages = await messageRepository.GetMessageThread(Context.User.GetUserName(), otherUser!);
-            await Clients.Group(groupName).SendAsync("ReceiveMessageThread", messages);
+            await Clients.Caller.SendAsync("ReceiveMessageThread", messages);
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            await RemoveFromMessageGroup();
+            var group = await RemoveFromMessageGroup();
+            await Clients.Group(group.Name).SendAsync("UpdatedGroup", group);
             await base.OnDisconnectedAsync(exception);
         }
 
@@ -62,6 +65,13 @@ namespace DatingApp.API.SignalR
             {
                 message.DateRead = DateTime.UtcNow;
             }
+            else
+            {
+                var connections = await PresenceTracker.GetConnectionForUser(recipient.UserName);
+                if(connections != null && connections.Any()){
+                    await presenceHub.Clients.Clients(connections).SendAsync("NewMessageReceived", new { username = sender.UserName, knownAs = sender.KnownAs });
+                }
+            }
 
             messageRepository.AddMessage(message);
             if (await messageRepository.SaveAllAsync())
@@ -70,7 +80,7 @@ namespace DatingApp.API.SignalR
             }
         }
 
-        private async Task<bool> AddToGroup(string groupName)
+        private async Task<Group> AddToGroup(string groupName)
         {
             var username = Context.User?.GetUserName() ?? throw new Exception("Cannot get username");
 
@@ -83,17 +93,25 @@ namespace DatingApp.API.SignalR
                 messageRepository.AddGroup(group);
             }
             group.Connections.Add(connection);
-            return await messageRepository.SaveAllAsync();
+           if(await messageRepository.SaveAllAsync()) return group;
+
+            throw new HubException("Failed to join group");
         }
 
-        private async Task RemoveFromMessageGroup()
+        private async Task<Group> RemoveFromMessageGroup()
         {
-            var connection = await messageRepository.GetConnection(Context.ConnectionId);
-            if(connection != null)
+            var group = await messageRepository.GetGroupForConnection(Context.ConnectionId);
+            var connection = group?.Connections.FirstOrDefault(x => x.ConnectionId == Context.ConnectionId);
+            if(connection != null && group != null)
             {
                 messageRepository.RemoveConnection(connection);
-                await messageRepository.SaveAllAsync();
+                if(await messageRepository.SaveAllAsync())
+                {
+                    return group;
+                }
             }
+
+            throw new Exception("Failed to remove from group");
         }
 
         private string GetGroupName(string caller, string? other)

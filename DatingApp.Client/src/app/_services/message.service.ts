@@ -6,6 +6,7 @@ import { Message } from '../_models/message';
 import { setPaginatedResponse, setPaginationHeaders } from './paginationHelper';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { User } from '../_models/user';
+import { Group } from '../_models/group';
 
 @Injectable({
   providedIn: 'root'
@@ -13,7 +14,7 @@ import { User } from '../_models/user';
 export class MessageService {
   baseUrl = environment.apiUrl;
   hubUrl = environment.hubUrl;
-  private hubConnection?: HubConnection;
+  hubConnection?: HubConnection;
   private http = inject(HttpClient);
   paginatedResult = signal<PaginatedResult<Message[]> | null>(null);
   messageThread = signal<Message[]>([]);
@@ -34,7 +35,20 @@ export class MessageService {
 
     this.hubConnection.on('NewMessage', message => {
       this.messageThread.update(messages => [...messages, message]);
-    })
+    });
+
+    this.hubConnection.on('UpdatedGroup', (group:Group) => {
+      if(group.connections.some(x => x.username === otherUsername)){
+        this.messageThread.update(messages =>{
+          messages.forEach(message => {
+            if(!message.dateRead){
+              message.dateRead = new Date(Date.now())
+            }
+          })
+          return messages;
+        })
+      }
+    });
   }
 
   stopHubConnection(){

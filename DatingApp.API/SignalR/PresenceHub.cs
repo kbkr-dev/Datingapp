@@ -10,22 +10,22 @@ namespace DatingApp.API.SignalR
         public override async Task OnConnectedAsync()
         {
             if(Context.User == null) { throw new HubException("cannot get current user claim"); }
-            await presenceTracker.UserConnected(Context.User.GetUserName(), Context.ConnectionId);
-            await Clients.Others.SendAsync("UserIsOnline", Context.User?.GetUserName());
+            var isOnline = await presenceTracker.UserConnected(Context.User.GetUserName(), Context.ConnectionId);
+            if (isOnline)
+            {
+                await Clients.Others.SendAsync("UserIsOnline", Context.User?.GetUserName());
+            }            
 
             var currenUsers = await presenceTracker.GetOnlineUsers();
-            await Clients.All.SendAsync("GetOnlineUsers", currenUsers);
+            await Clients.Caller.SendAsync("GetOnlineUsers", currenUsers);
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             if (Context.User == null) { throw new HubException("cannot get current user claim"); }
 
-            await presenceTracker.UserDisconnected(Context.User.GetUserName(), Context.ConnectionId);
-            await Clients.Others.SendAsync("UserIsOffline", Context.User?.GetUserName());
-
-            var currenUsers = await presenceTracker.GetOnlineUsers();
-            await Clients.All.SendAsync("GetOnlineUsers", currenUsers);
+            var isOffline = await presenceTracker.UserDisconnected(Context.User.GetUserName(), Context.ConnectionId);
+            if(isOffline) await Clients.Others.SendAsync("UserIsOffline", Context.User?.GetUserName());
 
             await base.OnDisconnectedAsync(exception);
         }
